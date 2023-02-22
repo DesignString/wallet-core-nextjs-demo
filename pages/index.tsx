@@ -1,11 +1,13 @@
 import Head from "next/head";
-import Image from "next/image";
 import styles from "../styles/Home.module.css";
 import { TTranx } from "../utils/wallet/types";
 import { initWasm } from "@trustwallet/wallet-core";
-import { Wallet } from "../utils/wallet";
 import { signNearRaw } from "../utils/near";
-import { useState } from "react";
+import { Fragment, useState } from "react";
+import { AddressForm } from "./ui-component/AddressForm";
+import axios, { AxiosResponse } from "axios";
+import ApprovalsTable from "./ui-component/ApprovalsTable";
+import { Dialog, Popover, Transition } from "@headlessui/react";
 export default function Home() {
   const txData: TTranx = {
     chainId: "near",
@@ -43,6 +45,161 @@ export default function Home() {
     setHash(txHash);
   };
 
+  const [formData, setFormData] = useState({
+    address: "",
+    isSubmitted: false,
+    loader: false,
+  });
+
+  const coinScanType = [
+    {
+      name: "Polygon",
+    },
+    {
+      name: "BSC",
+    },
+    {
+      name: "Fantom",
+    },
+  ];
+
+  const [approvalList, setApprovalList] = useState([] as any);
+
+  const postPolyScan = async (address: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      loader: true,
+    }));
+    const axiosInstance = axios.create();
+    const postBody = {
+      dataTableModel: {
+        draw: 3,
+        columns: [
+          {
+            data: "TxnHash",
+            name: "",
+            searchable: true,
+            orderable: false,
+            search: {
+              value: "",
+              regex: false,
+            },
+          },
+          {
+            data: "Block",
+            name: "",
+            searchable: true,
+            orderable: false,
+            search: {
+              value: "",
+              regex: false,
+            },
+          },
+          {
+            data: "Token",
+            name: "",
+            searchable: true,
+            orderable: false,
+            search: {
+              value: "",
+              regex: false,
+            },
+          },
+          {
+            data: "ApprovedSpender",
+            name: "",
+            searchable: true,
+            orderable: false,
+            search: {
+              value: "",
+              regex: false,
+            },
+          },
+          {
+            data: "ApprovedAmount",
+            name: "",
+            searchable: true,
+            orderable: false,
+            search: {
+              value: "",
+              regex: false,
+            },
+          },
+          {
+            data: "LastUpdated",
+            name: "",
+            searchable: true,
+            orderable: false,
+            search: {
+              value: "",
+              regex: false,
+            },
+          },
+          {
+            data: "Action",
+            name: "",
+            searchable: true,
+            orderable: false,
+            search: {
+              value: "",
+              regex: false,
+            },
+          },
+        ],
+        order: [],
+        start: 0,
+        length: 100,
+        search: {
+          value: "",
+          regex: false,
+        },
+      },
+      model: {
+        address: address,
+        filteredContract: "",
+      },
+    };
+    const url = `https://cors.codecrane.com/https://polygonscan.com/tokenapprovalchecker.aspx/GetApprovedContract`;
+    const config = {
+      method: "post",
+      url: url,
+      data: postBody,
+    };
+
+    return new Promise((resolve) => {
+      axiosInstance(config).then((res: any) => {
+        if (res.status === 200) {
+          const { data } = res;
+          resolve(data.d.data);
+          setFormData((prevData) => ({
+            ...prevData,
+            address: "",
+            loader: false,
+          }));
+          return;
+        }
+        console.error("Something went wrong! Please try again.");
+      });
+    });
+  };
+
+  const handleAddress = (address: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      address: address,
+    }));
+  };
+
+  const submitForm = async () => {
+    if (formData.address) {
+      const polygonscan = (await postPolyScan(
+        formData.address
+      )) as AxiosResponse;
+      setApprovalList(polygonscan);
+      console.log(polygonscan, "Polyscan");
+    }
+  };
+
   return (
     <>
       <Head>
@@ -51,38 +208,19 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className={styles.main}>
-        <div className={styles.center}>
-          <div className="relative w-80 flex flex-col">
-            <Image
-              className={styles.logo}
-              src="/next.svg"
-              alt="Next.js Logo"
-              width={180}
-              height={37}
-              priority
+      <main className="">
+        <div className="my-10">
+          <div className="relative  flex flex-col">
+            <AddressForm
+              submitForm={submitForm}
+              handleAddress={handleAddress}
+              formData={formData}
             />
-            <button
-              onClick={() => {
-                signNearTrust();
-              }}
-              className="mt-10 border border-black p-2 rounded-lg"
-            >
-              <span id="show-more" className="dark:text-white ">
-                {"Sign near tx with Wallet Core"}
-              </span>
-            </button>
-            <button
-              onClick={async () => {
-                await signNearAPIJs();
-              }}
-              className="mt-10 border border-black p-2 rounded-lg"
-            >
-              <span id="show-more" className="dark:text-white ">
-                {"Sign near tx with near-api-js"}
-              </span>
-            </button>
-            <p className="text-center break-all mt-5">{hash && hash}</p>
+            {approvalList.length > 1 && (
+              <div className="mx-10 border border-black rounded-lg">
+                <ApprovalsTable approvalsList={approvalList} />
+              </div>
+            )}
           </div>
         </div>
       </main>

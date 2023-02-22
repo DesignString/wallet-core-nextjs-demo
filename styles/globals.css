@@ -104,6 +104,14 @@ a {
   text-decoration: none;
 }
 
+.text-truncate {
+  display: block;
+  width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
